@@ -73,11 +73,3 @@ if [ -f "$CONFIG_FILE" ]; then
   sed -i '/^# CONFIG_ATH11K_NSS_SUPPORT is not set/d' "$CONFIG_FILE"
   grep -q '^CONFIG_ATH11K_NSS_SUPPORT=y' "$CONFIG_FILE" || echo 'CONFIG_ATH11K_NSS_SUPPORT=y' >> "$CONFIG_FILE"
 fi
-
-# 克隆 Argon 主题和配置插件
-if [ ! -d "package/luci-theme-argon" ]; then
-  git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
-fi
-if [ ! -d "package/luci-app-argon-config" ]; then
-  git clone --depth=1 https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config
-fi
