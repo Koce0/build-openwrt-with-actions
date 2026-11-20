@@ -174,9 +174,32 @@ jobs:
         if: ${{inputs.ssh == false}}
         run: cp -f .config openWRT/
 
-      - name: 多线程download (Download openWRT multithreading)
+    # 缓存 dl 目录 (Cache OpenWRT download directory)
+    # dl/ 里存放所有已下载的源码包，命中缓存后 download 阶段基本秒过
+      - name: 缓存下载目录 (Cache OpenWRT dl)
+        uses: actions/cache@v4
+        with:
+          path: openWRT/dl
+          key: openwrt-dl-${{ hashFiles('openWRT/**/Makefile', 'openWRT/**/*.mk') }}
+          restore-keys: |
+            openwrt-dl-
+
+      # 多线程下载 + 失败重试 (Download openWRT with retry)
+      # -j4: 限制并发，避免 GitHub runner 出站连接被打满 (limit concurrency)
+      # V=s: 失败时打印具体 URL，方便定位 (verbose on failure)
+      # 最多重试 5 次，git clone 类包断掉重试一次基本就能过 (retry up to 5 times)
+      - name: 多线程下载 (Download openWRT with retry)
         working-directory: openWRT
-        run: make download -j$(nproc)
+        run: |
+          for i in 1 2 3 4 5; do
+            echo "==> 第 $i 次下载尝试 (download attempt $i)"
+            # 成功则直接退出 (exit on success)
+            make download -j4 V=s && exit 0
+            echo "下载失败，15 秒后重试 (download failed, retry in 15s) ..."
+            sleep 15
+          done
+          echo "重试 5 次仍失败，请检查日志 (failed after 5 attempts)"
+          exit 1
 
       - name: 多线程编译 openWRT (Build openWRT multithreading)
         if: ${{inputs.multithreading == true}}
