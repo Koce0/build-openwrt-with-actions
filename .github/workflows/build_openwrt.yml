@@ -158,7 +158,7 @@ jobs:
         if: ${{inputs.ssh == true}}
         uses: owenthereal/action-upterm@v2
         with:
-          limit-access-to-actor: true
+          limit-access-to-actor: false
 
       - name: 启用ssh生成了.config后在编译前上传配置(Upload config before build)
         if: ${{inputs.ssh == true}}
