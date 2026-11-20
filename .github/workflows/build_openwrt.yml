@@ -43,6 +43,11 @@ jobs:
           df -hT
           echo "=============================================================================="
 
+      # ★ 修改点 1：把 hugoalh/disk-space-optimizer-ghaction@v0.8.1 整段替换成 shell
+      #    原因：该 action 内部调用的 setup-powershell-toolkit 有 [Boolean]::Parse('') 的 bug，
+      #    且 sudo 不保留 env，无法通过 env 兜底。这里用 shell 完成同样的清理。
+      #    原来 with 里的 general_exclude（GCC/G++/Clang/LLVM）在 shell 版里天然满足——
+      #    下面只删和 OpenWrt 无关的大目录，不碰编译工具链。
       - name: "Optimize Disk Space"
         run: |
           echo "::group::Remove preinstalled large dirs"
@@ -85,16 +90,28 @@ jobs:
           df -hT
           echo "::endgroup::"
 
+      # ★ 修改点 2：root-reserve-mb 从 3072 改成 8192
+      #    原因：3072 让根分区 / 只剩 3GB，runner 自身日志、ccache、临时文件一涨就写满，
+      #    导致 "No space left on device : .../_diag/Worker_*.log" 直接崩溃。
+      #    其余 remove-* 选项保持不变。
       - name: Freeing up disk space
         uses: easimon/maximize-build-space@master
         with:
-          root-reserve-mb: 3072
+          root-reserve-mb: 8192          # 原来是 3072
           swap-size-mb: 1
           remove-dotnet: "true"
           remove-android: "true"
           remove-haskell: "true"
           remove-codeql: "true"
           remove-docker-images: "true"
+
+      # ★ 修改点 3：新增诊断 step（可选，但建议保留，方便下次定位空间问题）
+      - name: Check disk layout
+        run: |
+          df -hT
+          echo "workspace: ${{ github.workspace }}"
+          readlink -f "${{ github.workspace }}"
+          mount | grep -E ' /mnt | / '
 
       - name: Free up disk space complete
         run: |
@@ -103,11 +120,18 @@ jobs:
           df -hT
           echo "=============================================================================="
 
+      # ★ 修改点 4：TMPDIR 不再用 $RUNNER_TEMP，改成 workspace 内部；
+      #    并新增 CCACHE_DIR，同样放到 workspace。
+      #    原因：maximize-build-space 会把 workspace 挂到 /mnt（大分区），
+      #    但 $RUNNER_TEMP（/home/runner/work/_temp）不保证被移过去，仍可能在 3GB 的 / 上。
+      #    用 $GITHUB_ENV 写入，后续 make download / make 也能继承。
       - name: 下载编译所需的依赖 (Install the software packages required for compilation)
         run: |
-          # 1️⃣ 将临时目录指向 Runner 主磁盘，避开 /tmp tmpfs 限制
-          export TMPDIR=$RUNNER_TEMP
-          sudo mkdir -p $TMPDIR
+          # ★ 修改点 4a：把 TMPDIR 和 CCACHE_DIR 指向 workspace，并持久化到后续 step
+          echo "TMPDIR=${{ github.workspace }}/.tmp" >> $GITHUB_ENV
+          echo "CCACHE_DIR=${{ github.workspace }}/.ccache" >> $GITHUB_ENV
+          mkdir -p "${{ github.workspace }}/.tmp" "${{ github.workspace }}/.ccache"
+
           # 2️⃣ 彻底清理 APT 缓存与包列表（释放 Inode 和残留空间）
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/*
