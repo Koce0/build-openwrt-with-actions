@@ -45,6 +45,26 @@ jobs:
 
       - name: "Optimize Disk Space"
         run: |
+          echo "::group::Remove preinstalled large dirs"
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /opt/hostedtoolcache
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /usr/local/.ghcup
+          sudo rm -rf /opt/az
+          sudo rm -rf /usr/share/miniconda
+          sudo rm -rf /usr/local/share/chromium
+          sudo rm -rf /opt/microsoft
+          sudo rm -rf /opt/google
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /usr/lib/mono
+          sudo rm -rf /usr/local/lib/node_modules
+          sudo rm -rf /usr/lib/jvm
+          sudo rm -rf /usr/local/go
+          echo "::endgroup::"
+
           echo "::group::Clean apt"
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/*
