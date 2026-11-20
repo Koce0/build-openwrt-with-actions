@@ -44,25 +44,26 @@ jobs:
           echo "=============================================================================="
 
       - name: "Optimize Disk Space"
-        uses: "hugoalh/disk-space-optimizer-ghaction@v0.8.1"
-        with:
-          operate_sudo: "True"
-          general_include: ".+"
-          general_exclude: |-
-            ^GCC$
-            ^G\+\+$
-            Clang
-            LLVM
-          docker_include: ".+"
-          docker_prune: "True"
-          docker_clean: "True"
-          apt_prune: "True"
-          apt_clean: "True"
-          homebrew_prune: "True"
-          homebrew_clean: "True"
-          npm_prune: "True"
-          npm_clean: "True"
-          os_swap: "True"
+        run: |
+          echo "::group::Clean apt"
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf /var/cache/apt/*
+          echo "::endgroup::"
+
+          echo "::group::Clean docker"
+          docker image prune -af || true
+          docker system prune -af --volumes || true
+          echo "::endgroup::"
+
+          echo "::group::Disable swap"
+          sudo swapoff -a || true
+          sudo rm -f /swapfile || true
+          echo "::endgroup::"
+
+          echo "::group::Result"
+          df -hT
+          echo "::endgroup::"
 
       - name: Freeing up disk space
         uses: easimon/maximize-build-space@master
